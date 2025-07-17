@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Product Pick & Pack</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1,user-scalable=no">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      width: 100vw; height: 100vh;
+      background: linear-gradient(180deg, #b085cf 0%, #edbde5 100%);
+      font-family: 'Fredoka One', Arial, sans-serif;
+      overflow: hidden; user-select: none;
+    }
+    .wrap {
+      width: 100vw; height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: flex-start; position: relative;
+    }
+    .carousel-block {
+      margin-top: 60px; display: flex; align-items: center;
+      justify-content: center; gap: 19px; width: 100vw;
+    }
+    .carousel-arrow {
+      width: 54px; height: 54px; background: none; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2; border-radius: 50%;
+      transition: background .15s;
+    }
+    .carousel-arrow:active { background: #fff2; }
+    .arrow-shape {
+      display: inline-block; width: 37px; height: 37px; border: none;
+      border-left: 7px solid #fff; border-bottom: 7px solid #fff;
+      transform: rotate(45deg); background: none;
+    }
+    .arrow-right .arrow-shape { transform: rotate(-135deg);}
+    .arrow-left .arrow-shape { transform: rotate(45deg);}
+    .product-main {
+      background: #fff; border-radius: 24px;
+      box-shadow: 0 4px 18px #9223a12a;
+      min-width: 112px; min-height: 112px;
+      width: 118px; height: 118px;
+      display: flex; align-items: center; justify-content: center;
+      transition: box-shadow .22s, transform .14s;
+      border: 0; margin: 0 6px; position: relative; cursor: pointer; outline: none;
+      flex-direction: column;
+    }
+    .product-main img { width: 72px; height: 72px; object-fit: contain; margin-bottom: 8px; }
+    .product-category {
+      font-size: 1rem; color: #8676be; background: #f1eafe;
+      border-radius: 10px; padding: 2px 11px; margin-bottom: 2px;
+      letter-spacing: .6px; font-weight: 600; min-width: 44px;
+      box-shadow: 0 3px 8px #e4d8fa32; margin-top: 2px;
+    }
+    .selected-label {
+      margin: 26px 0 0 0; color: #fff; font-size: 1.13rem; text-align: center;
+      letter-spacing: 1.3px; font-weight: bold; text-transform: uppercase;
+      text-shadow: 0 2px 8px #a876bf55;
+    }
+    .selected-list {
+      width: 91vw; max-width: 420px;
+      display: flex; flex-direction: column; align-items: center;
+      margin: 13px auto 0; gap: 10px; min-height: 14px;
+    }
+    .selected-item {
+      background: #fff; border-radius: 13px;
+      padding: 7px 17px 7px 11px;
+      font-size: 1.13rem; color: #5e377d; display: flex; align-items: center;
+      gap: 13px; font-family: 'Fredoka One', Arial, sans-serif;
+      box-shadow: 0 3px 13px #c59af729; font-weight: 500; transition: background .17s;
+      min-width: 0; min-height: 41px; animation: popIn .43s cubic-bezier(.22,1.7,.57,1.16);
+    }
+    @keyframes popIn { 0%{opacity:0; transform:scale(.84);} 100%{opacity:1; transform:scale(1);} }
+    .selected-item img { width: 34px; height: 34px; object-fit: contain; }
+    .btn-confirm {
+      margin: 34px auto 0 auto; display: block; background: #fff; color: #2a213a;
+      font-size: 1.33rem; border: 0; border-radius: 16px; font-family: 'Fredoka One', Arial, sans-serif;
+      font-weight: bold; padding: 12px 0 7px 0; width: 80vw; max-width: 320px;
+      box-shadow: 0 7px 21px #b985de32; letter-spacing: 1.6px;
+      transition: background .13s, color .13s, box-shadow .2s, opacity .23s;
+      cursor: pointer; opacity: 0.94; outline: none;
+    }
+    .btn-confirm:active { background: #efdbfc; color: #8a3cb6; }
+    .btn-confirm:disabled { opacity: 0.35; pointer-events: none; }
+    .loading-screen, .success-screen {
+      position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+      background: rgba(177,126,232,0.21); backdrop-filter: blur(15px);
+      z-index: 100; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; opacity: 0; pointer-events: none; transition: opacity .34s;
+    }
+    .loading-screen.active, .success-screen.active { opacity: 1; pointer-events: auto;}
+    .loader {
+      border: 7px solid #fff; border-top: 7px solid #b366ef; border-radius: 50%;
+      width: 62px; height: 62px; animation: spin 1.12s linear infinite;
+      margin-bottom: 23px; box-shadow: 0 3px 21px #c89fe9;
+    }
+    @keyframes spin { 0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);} }
+    .loading-text { color:#fff;font-size:1.09rem;font-weight:600;margin-bottom:19px; text-shadow:0 3px 16px #c5a3f782; }
+    .three-box-wrap { width: 190px; height: 190px; max-width: 97vw; max-height: 50vw; border-radius: 17px;
+      background: none; margin-bottom: 22px; position: relative; overflow: visible;
+      display: flex; align-items: flex-end; justify-content: center;
+      box-shadow:0 5px 17px #a99eff26;
+    }
+    #box3dCanvas { width:100%; height:100%; display:block; border-radius: 17px; background: transparent; }
+    .checkmark-box {
+      background: linear-gradient(135deg,#23e58d 65%,#1fb6fd 100%);
+      border-radius:50%; width:94px; height:94px; display:flex; align-items:center; justify-content:center;
+      margin-bottom:16px; margin-top: 37px;
+      box-shadow:0 7px 38px #63f0b92c, 0 0 0 18px #e0fff6; animation:pop .16s;
+    }
+    .checkmark-box svg { width:54px; height:54px;}
+    .success-msg { font-size: 1.18rem; font-weight: bold; color: #1ca857; text-align: center; margin-top: 7px;
+      text-shadow: 0 2px 9px #a5ffd0cc; letter-spacing: .7px;
+    }
+    @media (max-width: 600px) {
+      .carousel-block { margin-top:34px;}
+      .product-main { min-width:89px; min-height:89px; width:94px; height:94px;}
+      .three-box-wrap { width:110px;height:110px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="carousel-block">
+      <button class="carousel-arrow arrow-left" id="arrowLeft">
+        <span class="arrow-shape"></span>
+      </button>
+      <div class="product-main" id="mainProduct" tabindex="0">
+        <img src="" id="productImg" alt="">
+        <div class="product-category" id="categoryLabel"></div>
+      </div>
+      <button class="carousel-arrow arrow-right" id="arrowRight">
+        <span class="arrow-shape"></span>
+      </button>
+    </div>
+    <div class="selected-label">You picked</div>
+    <div class="selected-list" id="selectedList"></div>
+    <button class="btn-confirm" id="confirmBtn" disabled>Confirm</button>
+  </div>
+  <!-- Loading/Packing/Success overlays -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loader"></div>
+    <div class="loading-text">Packing your products...</div>
+    <div class="three-box-wrap"><canvas id="box3dCanvas"></canvas></div>
+  </div>
+  <div class="success-screen" id="successScreen">
+    <div class="checkmark-box">
+      <svg width="66" height="66" viewBox="0 0 50 50">
+        <polyline points="14,27 24,37 39,14" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="success-msg">Products are on the way!</div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script>
+    // PRODUCTS: твои картинки + категория
+    const products = [
+      {
+        name: "Phone",
+        icon: "https://i.ibb.co/KzjQfQj7/3495775.png",
+        category: "Electronics"
+      },
+      {
+        name: "Clothes",
+        icon: "https://i.ibb.co/zHRcgVG5/16-166665-clothes-png.png",
+        category: "Apparel"
+      },
+      {
+        name: "Cosmetics",
+        icon: "https://i.ibb.co/5gRRKnM6/pngtree-makeup-clip-art-dressing-table-essential-cosmetics-png-image-2674867.png",
+        category: "Cosmetics"
+      },
+      {
+        name: "Sweets",
+        icon: "https://i.ibb.co/5Z01Q2C/124-1247315-food-clipart-chocolate-chocolate-and-sweets-cartoon-hd.png",
+        category: "Food"
+      }
+    ];
+
+    let selected = [];
+    let idx = 0;
+    const maxSelected = 3;
+
+    const productImg = document.getElementById('productImg');
+    const mainProduct = document.getElementById('mainProduct');
+    const categoryLabel = document.getElementById('categoryLabel');
+    const selectedList = document.getElementById('selectedList');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const arrowLeft = document.getElementById('arrowLeft');
+    const arrowRight = document.getElementById('arrowRight');
+    const loadingScreen = document.getElementById('loadingScreen');
+    const box3dCanvas = document.getElementById('box3dCanvas');
+    const successScreen = document.getElementById('successScreen');
+
+    function renderProduct() {
+      productImg.src = products[idx].icon;
+      productImg.alt = products[idx].name;
+      categoryLabel.textContent = products[idx].category;
+    }
+    function renderSelected() {
+      selectedList.innerHTML = selected.map(prod => `
+        <div class="selected-item">
+          <img src="${prod.icon}" alt="">
+          <span>${prod.name}</span>
+        </div>
+      `).join('');
+      confirmBtn.disabled = selected.length < maxSelected;
+    }
+
+    arrowLeft.onclick = () => { idx = (idx - 1 + products.length) % products.length; renderProduct(); };
+    arrowRight.onclick = () => { idx = (idx + 1) % products.length; renderProduct(); };
+
+    mainProduct.onclick = () => {
+      if (selected.length >= maxSelected) return;
+      if (selected.find(p => p.name === products[idx].name)) return;
+      selected.push(products[idx]);
+      renderSelected();
+    };
+
+    confirmBtn.onclick = () => {
+      loadingScreen.classList.add("active");
+      start3DBox(selected.map(p=>p.icon),()=>{
+        loadingScreen.classList.remove("active");
+        successScreen.classList.add("active");
+        setTimeout(() => {
+          successScreen.classList.remove("active");
+          selected = [];
+          renderSelected();
+        }, 2200);
+      });
+    };
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "ArrowLeft") arrowLeft.click();
+      if (e.key === "ArrowRight") arrowRight.click();
+      if (e.key === "Enter") mainProduct.click();
+    });
+
+    renderProduct();
+    renderSelected();
+
+    // --- THREE.JS + GSAP 3D BOX PREMIUM ---
+    let scene, camera, renderer, box, lid, itemsMeshes = [];
+    function start3DBox(itemImgs, cb) {
+      let w = box3dCanvas.clientWidth, h = box3dCanvas.clientHeight;
+      if (!scene) {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(57, w/h, 0.1, 100);
+        camera.position.set(0.7, 1.7, 5.2);
+        scene.add(new THREE.AmbientLight(0xffffff, 1.09));
+        let dir = new THREE.DirectionalLight(0xf9ecd3,0.95); dir.position.set(1,6,6); scene.add(dir);
+
+        // Коробка (нижняя часть)
+        box = new THREE.Mesh(
+          new THREE.BoxGeometry(2,1,2),
+          new THREE.MeshPhysicalMaterial({color:0xf5deaf, roughness:.34, metalness:.08, clearcoat:.11, sheen:.28})
+        );
+        box.position.set(0,0,0); scene.add(box);
+
+        // Крышка (верх, отдельно, по умолчанию "открыта")
+        lid = new THREE.Mesh(
+          new THREE.BoxGeometry(2,0.15,2),
+          new THREE.MeshPhysicalMaterial({color:0xe4c077, roughness:.14, metalness:.10, clearcoat:.17, sheen:.23})
+        );
+        lid.position.set(0,0.59,0); lid.rotation.x = Math.PI/1.95; // Сильно открыта
+        scene.add(lid);
+
+        // Тень на полу
+        let plane = new THREE.Mesh(new THREE.PlaneGeometry(7,7),
+          new THREE.MeshStandardMaterial({color:0x000000, transparent:true, opacity:.12}));
+        plane.position.set(0,-.53,0); plane.rotation.x=-Math.PI/2; scene.add(plane);
+
+        renderer = new THREE.WebGLRenderer({canvas: box3dCanvas, alpha:true, antialias:true});
+        renderer.setClearColor(0x000000,0); renderer.setSize(w,h);
+      }
+
+      // Удаляем старые items
+      itemsMeshes.forEach(obj=>scene.remove(obj)); itemsMeshes = [];
+      const texLoader = new THREE.TextureLoader();
+      let pending = itemImgs.length;
+      itemImgs.forEach((img,i)=>{
+        texLoader.load(img, tex=>{
+          let mat=new THREE.MeshBasicMaterial({map:tex,transparent:true});
+          let mesh=new THREE.Mesh(new THREE.PlaneGeometry(0.59,0.59),mat);
+          mesh.position.set(-0.52+0.52*i,1.33+0.6*i,0.17-i*0.3);
+          mesh.rotation.z=(Math.random()-.5)*.43;
+          mesh.userData={targetY:-.09+Math.random()*.10,done:false};
+          itemsMeshes.push(mesh); scene.add(mesh);
+          if(!--pending) animateBox();
+        });
+      });
+
+      // Анимация открытия, падения предметов, плавное закрытие
+      function animateBox(){
+        let t = {val: 0};
+        // Открыта на 1.1рад (62°)
+        gsap.to(lid.rotation, {x: Math.PI/1.8, duration:.01,overwrite:true});
+        gsap.to(lid.rotation, {x: Math.PI/1.8, duration:.36,delay:.08,ease:"expo.out"});
+        // Плавно опускаем иконки в коробку
+        itemsMeshes.forEach((obj,i)=>{
+          let targetY = obj.userData.targetY;
+          gsap.to(obj.position, {
+            y: targetY,
+            duration: .61+.21*i,
+            delay: .3+.14*i,
+            ease: "back.in",
+            onUpdate:()=>{renderer.render(scene,camera);}
+          });
+        });
+        // После задержки — плавно закрыть крышку
+        setTimeout(()=>{
+          gsap.to(lid.rotation,{x:0, duration:.57, ease:"expo.inOut"});
+        }, 980);
+        // После паузы — вызвать callback (показать success)
+        setTimeout(()=>{ cb&&cb(); }, 1650);
+        function anim() {
+          box.rotation.y = lid.rotation.y = Math.sin(Date.now()/750)*0.07;
+          renderer.render(scene, camera);
+          requestAnimationFrame(anim);
+        }
+        anim();
+      }
+    }
+  </script>
+</body>
+</html>
