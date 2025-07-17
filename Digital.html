@@ -5,20 +5,23 @@
   <title>Product Pick & Pack</title>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1,user-scalable=no">
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <style>
     html, body {
       margin: 0; padding: 0;
       width: 100vw; height: 100vh;
+      min-height: 100vh;
       background: linear-gradient(180deg, #b085cf 0%, #edbde5 100%);
       font-family: 'Fredoka One', Arial, sans-serif;
       overflow: hidden; user-select: none;
     }
+    body {
+      min-height: 100svh;
+    }
     .wrap {
-      width: 100vw; height: 100vh;
+      width: 100vw; height: 100vh; min-height: 100svh;
       display: flex; flex-direction: column; align-items: center;
       justify-content: flex-start; position: relative;
+      overflow: hidden;
     }
     .carousel-block {
       margin-top: 60px; display: flex; align-items: center;
@@ -29,6 +32,7 @@
       display: flex; align-items: center; justify-content: center;
       z-index: 2; border-radius: 50%;
       transition: background .15s;
+      outline: none;
     }
     .carousel-arrow:active { background: #fff2; }
     .arrow-shape {
@@ -85,9 +89,10 @@
     }
     .btn-confirm:active { background: #efdbfc; color: #8a3cb6; }
     .btn-confirm:disabled { opacity: 0.35; pointer-events: none; }
+    /* Overlays */
     .loading-screen, .success-screen {
-      position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
-      background: rgba(177,126,232,0.21); backdrop-filter: blur(15px);
+      position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; min-height: 100svh;
+      background: linear-gradient(180deg, #b085cf 0%, #edbde5 100%);
       z-index: 100; display: flex; align-items: center; justify-content: center;
       flex-direction: column; opacity: 0; pointer-events: none; transition: opacity .34s;
     }
@@ -99,12 +104,17 @@
     }
     @keyframes spin { 0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);} }
     .loading-text { color:#fff;font-size:1.09rem;font-weight:600;margin-bottom:19px; text-shadow:0 3px 16px #c5a3f782; }
-    .three-box-wrap { width: 190px; height: 190px; max-width: 97vw; max-height: 50vw; border-radius: 17px;
-      background: none; margin-bottom: 22px; position: relative; overflow: visible;
-      display: flex; align-items: flex-end; justify-content: center;
-      box-shadow:0 5px 17px #a99eff26;
+    .box-wrap {
+      width: 200px; max-width: 70vw; aspect-ratio: 1/1; margin-top: 15px;
+      display: flex; align-items: center; justify-content: center;
     }
-    #box3dCanvas { width:100%; height:100%; display:block; border-radius: 17px; background: transparent; }
+    .box-img {
+      width: 100%; height: auto; object-fit: contain; display: block;
+      max-height: 220px;
+      transition: opacity .3s;
+      background: none;
+      pointer-events: none;
+    }
     .checkmark-box {
       background: linear-gradient(135deg,#23e58d 65%,#1fb6fd 100%);
       border-radius:50%; width:94px; height:94px; display:flex; align-items:center; justify-content:center;
@@ -118,7 +128,7 @@
     @media (max-width: 600px) {
       .carousel-block { margin-top:34px;}
       .product-main { min-width:89px; min-height:89px; width:94px; height:94px;}
-      .three-box-wrap { width:110px;height:110px; }
+      .box-wrap { width: 41vw; min-width: 110px; }
     }
   </style>
 </head>
@@ -144,7 +154,11 @@
   <div class="loading-screen" id="loadingScreen">
     <div class="loader"></div>
     <div class="loading-text">Packing your products...</div>
-    <div class="three-box-wrap"><canvas id="box3dCanvas"></canvas></div>
+    <div class="box-wrap">
+      <!-- Коробка: не растягивается, не обрезается! -->
+      <img src="https://i.ibb.co/wNQDJ1tv/a82a86eb53ce9f9a44bcbdb64c73b1-unscreen.gif"
+           alt="Box" class="box-img" id="boxImage">
+    </div>
   </div>
   <div class="success-screen" id="successScreen">
     <div class="checkmark-box">
@@ -154,8 +168,6 @@
     </div>
     <div class="success-msg">Products are on the way!</div>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script>
     // PRODUCTS: твои картинки + категория
     const products = [
@@ -193,7 +205,6 @@
     const arrowLeft = document.getElementById('arrowLeft');
     const arrowRight = document.getElementById('arrowRight');
     const loadingScreen = document.getElementById('loadingScreen');
-    const box3dCanvas = document.getElementById('box3dCanvas');
     const successScreen = document.getElementById('successScreen');
 
     function renderProduct() {
@@ -223,15 +234,16 @@
 
     confirmBtn.onclick = () => {
       loadingScreen.classList.add("active");
-      start3DBox(selected.map(p=>p.icon),()=>{
+      // Коробка показывается достаточно долго, чтобы “лента” успела закрыть (подкорректируй тайминг!)
+      setTimeout(() => {
         loadingScreen.classList.remove("active");
         successScreen.classList.add("active");
         setTimeout(() => {
           successScreen.classList.remove("active");
           selected = [];
           renderSelected();
-        }, 2200);
-      });
+        }, 2100);
+      }, 3400); // <-- ТУТ длительность показа коробки/анимации! (проверь, что коробка не обрывается)
     };
 
     document.addEventListener("keydown", e => {
@@ -243,88 +255,26 @@
     renderProduct();
     renderSelected();
 
-    // --- THREE.JS + GSAP 3D BOX PREMIUM ---
-    let scene, camera, renderer, box, lid, itemsMeshes = [];
-    function start3DBox(itemImgs, cb) {
-      let w = box3dCanvas.clientWidth, h = box3dCanvas.clientHeight;
-      if (!scene) {
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(57, w/h, 0.1, 100);
-        camera.position.set(0.7, 1.7, 5.2);
-        scene.add(new THREE.AmbientLight(0xffffff, 1.09));
-        let dir = new THREE.DirectionalLight(0xf9ecd3,0.95); dir.position.set(1,6,6); scene.add(dir);
+    // Свайп на мобиле для смены товара
+    let x0 = null;
+    mainProduct.addEventListener('touchstart', e => {
+      x0 = e.touches[0].clientX;
+    });
+    mainProduct.addEventListener('touchend', e => {
+      if(x0===null)return;
+      let dx = e.changedTouches[0].clientX - x0;
+      if (dx > 38) arrowLeft.click();
+      else if (dx < -38) arrowRight.click();
+      x0 = null;
+    });
 
-        // Коробка (нижняя часть)
-        box = new THREE.Mesh(
-          new THREE.BoxGeometry(2,1,2),
-          new THREE.MeshPhysicalMaterial({color:0xf5deaf, roughness:.34, metalness:.08, clearcoat:.11, sheen:.28})
-        );
-        box.position.set(0,0,0); scene.add(box);
-
-        // Крышка (верх, отдельно, по умолчанию "открыта")
-        lid = new THREE.Mesh(
-          new THREE.BoxGeometry(2,0.15,2),
-          new THREE.MeshPhysicalMaterial({color:0xe4c077, roughness:.14, metalness:.10, clearcoat:.17, sheen:.23})
-        );
-        lid.position.set(0,0.59,0); lid.rotation.x = Math.PI/1.95; // Сильно открыта
-        scene.add(lid);
-
-        // Тень на полу
-        let plane = new THREE.Mesh(new THREE.PlaneGeometry(7,7),
-          new THREE.MeshStandardMaterial({color:0x000000, transparent:true, opacity:.12}));
-        plane.position.set(0,-.53,0); plane.rotation.x=-Math.PI/2; scene.add(plane);
-
-        renderer = new THREE.WebGLRenderer({canvas: box3dCanvas, alpha:true, antialias:true});
-        renderer.setClearColor(0x000000,0); renderer.setSize(w,h);
-      }
-
-      // Удаляем старые items
-      itemsMeshes.forEach(obj=>scene.remove(obj)); itemsMeshes = [];
-      const texLoader = new THREE.TextureLoader();
-      let pending = itemImgs.length;
-      itemImgs.forEach((img,i)=>{
-        texLoader.load(img, tex=>{
-          let mat=new THREE.MeshBasicMaterial({map:tex,transparent:true});
-          let mesh=new THREE.Mesh(new THREE.PlaneGeometry(0.59,0.59),mat);
-          mesh.position.set(-0.52+0.52*i,1.33+0.6*i,0.17-i*0.3);
-          mesh.rotation.z=(Math.random()-.5)*.43;
-          mesh.userData={targetY:-.09+Math.random()*.10,done:false};
-          itemsMeshes.push(mesh); scene.add(mesh);
-          if(!--pending) animateBox();
-        });
-      });
-
-      // Анимация открытия, падения предметов, плавное закрытие
-      function animateBox(){
-        let t = {val: 0};
-        // Открыта на 1.1рад (62°)
-        gsap.to(lid.rotation, {x: Math.PI/1.8, duration:.01,overwrite:true});
-        gsap.to(lid.rotation, {x: Math.PI/1.8, duration:.36,delay:.08,ease:"expo.out"});
-        // Плавно опускаем иконки в коробку
-        itemsMeshes.forEach((obj,i)=>{
-          let targetY = obj.userData.targetY;
-          gsap.to(obj.position, {
-            y: targetY,
-            duration: .61+.21*i,
-            delay: .3+.14*i,
-            ease: "back.in",
-            onUpdate:()=>{renderer.render(scene,camera);}
-          });
-        });
-        // После задержки — плавно закрыть крышку
-        setTimeout(()=>{
-          gsap.to(lid.rotation,{x:0, duration:.57, ease:"expo.inOut"});
-        }, 980);
-        // После паузы — вызвать callback (показать success)
-        setTimeout(()=>{ cb&&cb(); }, 1650);
-        function anim() {
-          box.rotation.y = lid.rotation.y = Math.sin(Date.now()/750)*0.07;
-          renderer.render(scene, camera);
-          requestAnimationFrame(anim);
-        }
-        anim();
-      }
+    // Фикс на мобиле — фон на всю высоту (даже на iOS Safari)
+    function resizeFix(){
+      document.body.style.minHeight = window.innerHeight+'px';
+      document.body.style.height = window.innerHeight+'px';
+      document.querySelector('.wrap').style.height = window.innerHeight+'px';
     }
+    window.addEventListener('resize', resizeFix); resizeFix();
   </script>
 </body>
 </html>
